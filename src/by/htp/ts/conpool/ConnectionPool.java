@@ -17,7 +17,7 @@ public final class ConnectionPool {
     private String password;
     private int poolSize;
 
-    public ConnectionPool() {
+    public ConnectionPool() throws ConnectionPoolException{
         manager=new DBResourceManager();
         driverName = manager.getValue("db.driver");
         url = manager.getValue("db.url");
@@ -31,24 +31,27 @@ public final class ConnectionPool {
         }
         freeConInPool = new ArrayBlockingQueue<Connection>(poolSize);
         usingConInPool = new ArrayBlockingQueue<Connection>(poolSize);
-        connectionPoolExecute();
+        try{
+        	connectionPoolExecute();
+    		throw new ConnectionPoolException();
+        }catch(ConnectionPoolException ex) {
+        	throw new ConnectionPoolException(ex);
+        }
     }
 
-    public void connectionPoolExecute() {
+    public void connectionPoolExecute() throws ConnectionPoolException{
         try {
             Class.forName(driverName);
             for (int i = 0; i < poolSize; i++) {
                 freeConInPool.add(new PooledConnection(DriverManager.getConnection(url, login, password)));
             }
-        } catch (ClassNotFoundException ex) {
+        } catch (ClassNotFoundException | SQLException | RuntimeException ex) {
             ex.printStackTrace();
-
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+            throw new ConnectionPoolException(ex);
         }
     }
 
-    public Connection takeConnection(){
+    public Connection takeConnection() throws ConnectionPoolException{
         Connection connection=null;
         try{
             connection=freeConInPool.take();
@@ -56,7 +59,11 @@ public final class ConnectionPool {
 
         }catch (InterruptedException ex){
             ex.printStackTrace();
+            throw new ConnectionPoolException(ex);
+        }catch (RuntimeException ex){
+            ex.printStackTrace();
         }
+        
         return connection;
     }
 
@@ -69,7 +76,7 @@ public final class ConnectionPool {
         Connection connection;
         while ((connection=queue.poll())!=null){
             try {
-                if(!connection.getAutoCommit()){
+                if(!connection.getAutoCommit()&!connection.isClosed()){
                     connection.commit();
                 }
                 ((PooledConnection)connection).closeReally();
@@ -92,8 +99,12 @@ public final class ConnectionPool {
 
         @Override
         public void close() {
-            usingConInPool.remove(this);
-            freeConInPool.add(this);
+            try{
+            	usingConInPool.remove(this);
+            	freeConInPool.add(this);
+            }catch (RuntimeException ex){
+                ex.printStackTrace();
+            } 
         }
 
         @Override
