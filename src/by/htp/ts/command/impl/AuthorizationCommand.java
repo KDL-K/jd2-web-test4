@@ -44,7 +44,6 @@ public class AuthorizationCommand implements Command {
 			session.setAttribute(CommandImplParameter.ERROR_MESSAGE, CommandImplParameter.DB_CONNECTION_HAS_FAILED);
 			goToPage="/WEB-INF/jsp/error.jsp";
 		}
-		System.out.println("gotoRequest from authorization " +goToPage);
 		session.setAttribute(CommandImplParameter.GOTO_REQUEST, goToPage);
 		response.sendRedirect(CommandImplParameter.GO_TO_SOME_PAGE);
 		

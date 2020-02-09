@@ -25,7 +25,6 @@ public class GoToSomePage implements Command{
 		}
 		
 		String gotoRequest = (String)session.getAttribute(CommandImplParameter.GOTO_REQUEST);
-		System.out.println("from some page "+gotoRequest);
 		
 		request.getRequestDispatcher(gotoRequest).forward(request, response);
 	}

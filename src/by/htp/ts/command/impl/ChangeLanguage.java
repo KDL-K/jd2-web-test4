@@ -25,7 +25,6 @@ public class ChangeLanguage implements Command{
 	    }
 	    
 	    if (goToRequest.endsWith(".jsp")) {
-	    	System.out.println("from land "+goToRequest);
 	    	RequestDispatcher dispatcher=request.getRequestDispatcher(goToRequest);
 			dispatcher.forward(request, response);
 	    	

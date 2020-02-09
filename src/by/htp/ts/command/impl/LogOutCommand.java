@@ -17,7 +17,6 @@ public class LogOutCommand implements Command{
 		User user;
 		HttpSession session=request.getSession();
 		if(session == null) {
-			System.out.println("No session");
 			response.sendRedirect("Controller?command=go_to_authorization_page");
 			return;
 		}
