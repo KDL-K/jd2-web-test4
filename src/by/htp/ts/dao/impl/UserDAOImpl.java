@@ -5,6 +5,7 @@ import by.htp.ts.bean.UserPlusLogPass;
 import by.htp.ts.bean.UserProgress;
 import by.htp.ts.controller.Controller;
 import by.htp.ts.dao.DAOException;
+import by.htp.ts.conpool.ConnectionPoolException;
 import by.htp.ts.dao.UserDAO;
 
 import java.sql.Connection;
@@ -16,19 +17,21 @@ import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class UserDAOImpl implements UserDAO{
+	private static final ReentrantLock dbLock = new ReentrantLock();
+	
 	public User authorization(String login, String password) throws DAOException{
 		
 		final String PST_CHECK_PARAM = "SELECT login, password FROM user WHERE login=? AND password=?";
 		final String PST_GET_USER_PARAM = "SELECT user.id, email, name, surname, role_title, age FROM ((user_details JOIN user ON user_details.id=user.user_details_id)"
 				+ "JOIN roles ON user.roles_id=roles.id) WHERE user.login=?";
-		
-		Connection connection = Controller.getConnectionPool().takeConnection();
-		
+	
+		Connection connection=null;
 		PreparedStatement pstCheck = null;
 		PreparedStatement pstGetUser = null;
 		ResultSet rsCheck = null;
 		ResultSet rsGetUser = null;
 		try {
+			connection = Controller.getConnectionPool().takeConnection();
 			pstCheck=connection.prepareStatement(PST_CHECK_PARAM);
 			
 			pstCheck.setString(1, login);
@@ -52,7 +55,7 @@ public class UserDAOImpl implements UserDAO{
 				return user;
 			}
 			
-		}catch(SQLException e) {
+		}catch(ConnectionPoolException | SQLException  e) {
 			throw new DAOException(e);
 		}finally {
 			if(rsCheck != null) {
@@ -105,7 +108,7 @@ public class UserDAOImpl implements UserDAO{
 	}
 	
 	public boolean registration(UserPlusLogPass userPLP) throws DAOException{
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection=null;
 		final String PST_CHECK_LOGIN = "SELECT login FROM user WHERE login=?";
 		final String PST_IN_USER_DETAILS = "INSERT INTO user_details(name,surname,sex,age) VALUE(?,?,?,?)";
 		final String PST_IN_USER = "INSERT INTO user(login,password,email,user_details_id,roles_id)"+
@@ -114,10 +117,12 @@ public class UserDAOImpl implements UserDAO{
 		PreparedStatement pstInUser = null;
 		PreparedStatement pstInUserDetails = null;
 		ResultSet rsCheck = null;
-		ReentrantLock dbLock = new ReentrantLock();
+		
 		dbLock.lock();
 		boolean isRegistered = false;
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
+			
 			pstCheck=connection.prepareStatement(PST_CHECK_LOGIN);
 			pstCheck.setString(1, userPLP.getLogin());
 			rsCheck=pstCheck.executeQuery();
@@ -150,7 +155,7 @@ public class UserDAOImpl implements UserDAO{
 			}
 			
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -212,7 +217,7 @@ public class UserDAOImpl implements UserDAO{
 	@Override
 	public List<UserProgress> receiveProgress(int userId) throws DAOException {
 		List<UserProgress> userProgressList = new ArrayList<UserProgress>();
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 		final String PST_GET_PROGRESS = "SELECT test_name, test_date, test_result "
 				+ "FROM user_progress JOIN test ON test_id=test.id WHERE user_progress.user_id=?";
 		
@@ -221,6 +226,8 @@ public class UserDAOImpl implements UserDAO{
 		ResultSet rsGetProgress = null;
 
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
+			
 			pstGetProgress = connection.prepareStatement(PST_GET_PROGRESS);
 			pstGetProgress.setInt(1, userId);
 			rsGetProgress = pstGetProgress.executeQuery();
@@ -234,7 +241,7 @@ public class UserDAOImpl implements UserDAO{
 				userProgressList.add(userProgress);
 			}
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 

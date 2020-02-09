@@ -12,6 +12,7 @@ import by.htp.ts.bean.Answer;
 import by.htp.ts.bean.FinishedTest;
 import by.htp.ts.bean.Question;
 import by.htp.ts.bean.Test;
+import by.htp.ts.conpool.ConnectionPoolException;
 import by.htp.ts.controller.Controller;
 import by.htp.ts.dao.DAOException;
 import by.htp.ts.dao.TestDAO;
@@ -24,9 +25,12 @@ public class TestDAOImpl implements TestDAO{
 	private final String ANSWER_TITLE = "answer_title";
 	private final String CORRECT_ANSWER = "correct_answer";
 	
+	private static final ReentrantLock dbLockAddTest = new ReentrantLock();
+	private static final ReentrantLock dbLockSaveQuestion = new ReentrantLock();
+	
 	@Override
 	public int addTest(int userId, String testTitle, int testDuration) throws DAOException {
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 		final String PST_IN_TEST = "INSERT INTO test(test_name,test_time,user_id) VALUE(?,?,?)";
 		final String PST_GET_TEST_ID = "SELECT id FROM test WHERE id=LAST_INSERT_ID()";
 
@@ -35,9 +39,9 @@ public class TestDAOImpl implements TestDAO{
 		ResultSet rsGetTestId = null;
 		int testId;
 
-		ReentrantLock dbLock = new ReentrantLock();
-		dbLock.lock();
+		dbLockAddTest.lock();
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
 			connection.setAutoCommit(false);
 			
 			pstInTest = connection.prepareStatement(PST_IN_TEST);
@@ -54,7 +58,7 @@ public class TestDAOImpl implements TestDAO{
 			
 			connection.commit();
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -97,13 +101,13 @@ public class TestDAOImpl implements TestDAO{
 				}
 			}
 		}
-		dbLock.unlock();
+		dbLockAddTest.unlock();
 		return testId;
 	}
 
 	@Override
 	public boolean saveQuestion(Question question) throws DAOException{
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 		final String PST_IN_QUESTION = "INSERT INTO question(question_title,test_id) VALUE(?,?)";
 		final String PST_GET_QUESTION_ID = "SELECT id FROM question WHERE id=LAST_INSERT_ID()";
 		final String PST_IN_ANSWERS = "INSERT INTO answers(answer_title,correct_answer,question_id) VALUE(?,?,?)";
@@ -115,11 +119,10 @@ public class TestDAOImpl implements TestDAO{
 		PreparedStatement[] pstInAnswers = new PreparedStatement[answersCount];
 		ResultSet rsGetQuestionId = null;
 		int questionId;
-
-		ReentrantLock dbLock = new ReentrantLock();
-		dbLock.lock();
 		
+		dbLockSaveQuestion.lock();
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
 			connection.setAutoCommit(false);
 			
 			pstInQuestion = connection.prepareStatement(PST_IN_QUESTION);
@@ -144,7 +147,7 @@ public class TestDAOImpl implements TestDAO{
 			
 			connection.commit();
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -198,7 +201,7 @@ public class TestDAOImpl implements TestDAO{
 				}
 			}
 		}
-		dbLock.unlock();
+		dbLockSaveQuestion.unlock();
 		return true;
 	}
 	
@@ -206,14 +209,14 @@ public class TestDAOImpl implements TestDAO{
 	public List<Test> receiveCreatedTests(int userId) throws DAOException {
 		final String PST_GET_CREATED_TESTS = "SELECT id, test_name FROM test WHERE user_id=?";
 		
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 
 		PreparedStatement pstGetCreatedTests = null;
 		ResultSet rsGetCreatedTests = null;
 		List<Test> testList=new ArrayList<Test>();
 
 		try {
-			
+			connection=Controller.getConnectionPool().takeConnection();
 			pstGetCreatedTests = connection.prepareStatement(PST_GET_CREATED_TESTS);
 			pstGetCreatedTests.setInt(1, userId);
 			rsGetCreatedTests = pstGetCreatedTests.executeQuery();
@@ -225,7 +228,7 @@ public class TestDAOImpl implements TestDAO{
 				testList.add(test);
 			}
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {	
 			
@@ -259,7 +262,7 @@ public class TestDAOImpl implements TestDAO{
 
 	@Override
 	public void deleteTest(int testId) throws DAOException{
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 		final String PST_GET_QUESTION_ID = "SELECT id FROM question WHERE test_id=?";
 		final String PST_DELETE_ANSWERS = "DELETE FROM answers WHERE question_id=?";
 		final String PST_DELETE_QUESTIONS = "DELETE FROM question WHERE test_id=?";
@@ -274,9 +277,8 @@ public class TestDAOImpl implements TestDAO{
 		int questionCount = 0;
 		List<Integer> questionIdList = new ArrayList<Integer>();
 
-		ReentrantLock dbLock = new ReentrantLock();
-		dbLock.lock();
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
 			connection.setAutoCommit(false);
 			
 			pstGetQuestionId = connection.prepareStatement(PST_GET_QUESTION_ID);
@@ -306,7 +308,7 @@ public class TestDAOImpl implements TestDAO{
 			
 			connection.commit();
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -370,21 +372,20 @@ public class TestDAOImpl implements TestDAO{
 				}
 			}
 		}
-		dbLock.unlock();	
 	}
 	
 	@Override
 	public List<Test> receiveAvailableTests() throws DAOException {
 		final String PST_GET_AVAILABLE_TESTS = "SELECT id, test_name FROM test";
 		
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 
 		PreparedStatement pstGetAvailableTests = null;
 		ResultSet rsGetAvailableTests = null;
 		List<Test> testList=new ArrayList<Test>();
 
 		try {
-			
+			connection=Controller.getConnectionPool().takeConnection();
 			pstGetAvailableTests = connection.prepareStatement(PST_GET_AVAILABLE_TESTS);
 			rsGetAvailableTests = pstGetAvailableTests.executeQuery();
 			
@@ -395,7 +396,7 @@ public class TestDAOImpl implements TestDAO{
 				testList.add(test);
 			}
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {	
 			
@@ -439,7 +440,7 @@ public class TestDAOImpl implements TestDAO{
         
         List<Question> questionList=new ArrayList<Question>();
         
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 
 		PreparedStatement pstGetTest = null;
 		PreparedStatement pstGetQuestions = null;
@@ -451,7 +452,7 @@ public class TestDAOImpl implements TestDAO{
 		int questionCount=0;
 
 		try {
-			
+		    connection=Controller.getConnectionPool().takeConnection();
 			pstGetTest = connection.prepareStatement(PST_GET_TEST);
 			pstGetTest.setInt(1, testId);
 			rsGetTest = pstGetTest.executeQuery();
@@ -509,7 +510,7 @@ public class TestDAOImpl implements TestDAO{
 			
 			
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {	
 			
@@ -586,11 +587,10 @@ public class TestDAOImpl implements TestDAO{
         	answerListNew.addAll(answerList);
         }
 		
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		Connection connection = null;
 
-		ReentrantLock dbLock = new ReentrantLock();
-		dbLock.lock();
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
 			connection.setAutoCommit(false);
 			
 			pstUpdateTest = connection.prepareStatement(PST_UPDATE_TEST);
@@ -620,7 +620,7 @@ public class TestDAOImpl implements TestDAO{
 
 			connection.commit();
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -670,18 +670,18 @@ public class TestDAOImpl implements TestDAO{
 				}
 			}
 		}
-		dbLock.unlock();
 
 		return true;
 	}
 	
 	@Override
 	public void finishTest(FinishedTest finishedTest) throws DAOException {
-		Connection connection=Controller.getConnectionPool().takeConnection();
+		
 		final String PST_GET_PROGRESS = "SELECT test_result FROM user_progress WHERE user_id=? AND test_id=?";
 		final String PST_UPDATE_PROGRESS = "UPDATE user_progress SET test_date=CURDATE(),test_result=? WHERE user_id=? AND test_id=?";
 		final String PST_IN_PROGRESS = "INSERT INTO user_progress(user_id,test_id,test_date,test_result) VALUE(?,?,CURDATE(),?)";
 		
+		Connection connection = null;
 		PreparedStatement pstGetProgress = null;
 		PreparedStatement pstUpdateProgress = null;
 		PreparedStatement pstInProgress = null;
@@ -693,6 +693,7 @@ public class TestDAOImpl implements TestDAO{
 		int testResult = finishedTest.getResult();
 
 		try {
+			connection=Controller.getConnectionPool().takeConnection();
 			pstGetProgress = connection.prepareStatement(PST_GET_PROGRESS);
 			pstGetProgress.setInt(1, userId);
 			pstGetProgress.setInt(2, testId);
@@ -715,7 +716,7 @@ public class TestDAOImpl implements TestDAO{
 			
 			connection.commit();
 			
-		}catch(SQLException e) { 
+		}catch(ConnectionPoolException | SQLException  e) { 
 			throw new DAOException(e);
 		}finally {
 			try {
@@ -770,19 +771,5 @@ public class TestDAOImpl implements TestDAO{
 		
 	}
 
-	
-
-
-	
-
-	
-
-	
-
-	
-
-	
-
-	
 
 }
