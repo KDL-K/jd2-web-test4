@@ -6,7 +6,7 @@ public class DBResourceManager {
     private ResourceBundle rb;
 
     public DBResourceManager(){
-        rb=ResourceBundle.getBundle("by.htp.ts.resources.db");
+        rb=ResourceBundle.getBundle("resources.db");
     }
 
     public String getValue(String key){
