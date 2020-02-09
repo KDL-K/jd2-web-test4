@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import by.htp.ts.command.CommandProvider;
 import by.htp.ts.conpool.ConnectionPool;
+import by.htp.ts.conpool.ConnectionPoolException;
 
 
 
@@ -25,8 +26,14 @@ public class Controller extends HttpServlet {
     
     @Override
 	public void init() throws ServletException{
-    	connectionPool=new ConnectionPool();
     	super.init();
+    	try{
+    		connectionPool=new ConnectionPool();
+    	}catch(ConnectionPoolException ex) {
+    		ex.printStackTrace();
+    		throw new ServletException("Sorry. Try later.");
+    	}
+    	
     }
     
     public static ConnectionPool getConnectionPool() {
