@@ -33,7 +33,6 @@ public final class ConnectionPool {
         usingConInPool = new ArrayBlockingQueue<Connection>(poolSize);
         try{
         	connectionPoolExecute();
-    		throw new ConnectionPoolException();
         }catch(ConnectionPoolException ex) {
         	throw new ConnectionPoolException(ex);
         }
@@ -45,7 +44,7 @@ public final class ConnectionPool {
             for (int i = 0; i < poolSize; i++) {
                 freeConInPool.add(new PooledConnection(DriverManager.getConnection(url, login, password)));
             }
-        } catch (ClassNotFoundException | SQLException | RuntimeException ex) {
+        } catch (ClassNotFoundException | SQLException ex) {
             ex.printStackTrace();
             throw new ConnectionPoolException(ex);
         }
@@ -60,10 +59,7 @@ public final class ConnectionPool {
         }catch (InterruptedException ex){
             ex.printStackTrace();
             throw new ConnectionPoolException(ex);
-        }catch (RuntimeException ex){
-            ex.printStackTrace();
         }
-        
         return connection;
     }
 
